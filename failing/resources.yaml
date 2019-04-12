@@ -1,20 +1,4 @@
 ---
-# Source: webapp/templates/secrets.yaml
-
-apiVersion: v1
-kind: Secret
-type: Opaque
-metadata:
-  name: sample-api-dev
-  namespace: sample-ns
-  labels:
-    app.kubernetes.io/name: sample-api
-    app.kubernetes.io/instance: sample-api-dev
-    helm.sh/chart: "webapp-v0.1.0"
-
-data:
-  API_Authentication__ClientId: "MTIzNDU2"
----
 # Source: webapp/templates/service.yaml
 apiVersion: v1
 kind: Service
@@ -67,28 +51,13 @@ spec:
         app.kubernetes.io/instance: sample-api-dev
         helm.sh/chart: "webapp-v0.1.0"
     spec:
-      imagePullSecrets:
-      - name: example-registrycredentials
       containers:
       - name: sample-api
-        image: "examplecr-on.azurecr.io/sample-api-dev:latest"
+        image: "stefanprodan/podinfo:latest"
         imagePullPolicy: Always
         ports:
         - name: http
           containerPort: 80
-        livenessProbe:
-          httpGet:
-            path: /api/system/status
-            port: 80
-          initialDelaySeconds: 60
-          timeoutSeconds: 10
-          periodSeconds: 15
-        readinessProbe:
-          httpGet:
-            path: /api/system/status
-            port: 80
-          initialDelaySeconds: 60
-          timeoutSeconds: 10
         env:
           - name: API_Authentication__ClientId
             valueFrom:
@@ -96,34 +65,6 @@ spec:
                 name: sample-api-dev
                 key: "API_Authentication__ClientId"
         resources:
-            {}
-            
----
-# Source: webapp/templates/ingress.yaml
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: sample-api-dev
-  namespace: sample-ns
-  annotations:
-    kubernetes.io/ingress.class: nginx
-    
-  labels:
-    app.kubernetes.io/name: sample-api
-    app.kubernetes.io/instance: sample-api-dev
-    helm.sh/chart: "webapp-v0.1.0"
-spec:
-  tls:
-    - hosts:
-      - sample-api-dev.example.com
-      secretName: star-example-com-tls
-  rules:
-  - host: sample-api-dev.example.com
-    http:
-      paths:
-      - path: /
-        backend:
-          serviceName: sample-api-dev
-          servicePort: 80
+            {}            
 ---
 # Source: webapp/templates/configmap.yaml
