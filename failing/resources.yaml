@@ -1,0 +1,129 @@
+---
+# Source: webapp/templates/secrets.yaml
+
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: sample-api-dev
+  namespace: sample-ns
+  labels:
+    app.kubernetes.io/name: sample-api
+    app.kubernetes.io/instance: sample-api-dev
+    helm.sh/chart: "webapp-v0.1.0"
+
+data:
+  API_Authentication__ClientId: "MTIzNDU2"
+---
+# Source: webapp/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-api-dev
+  namespace: sample-ns
+  labels:
+    app.kubernetes.io/name: sample-api
+    app.kubernetes.io/instance: sample-api-dev
+    helm.sh/chart: "webapp-v0.1.0"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  selector:
+    app.kubernetes.io/instance: sample-api-dev
+---
+# Source: webapp/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-api-dev
+  namespace: sample-ns
+  annotations:
+    checksum/secrets: "1234567890"
+    flux.weave.works/automated: "true"
+    flux.weave.works/tag.sample-api: glob:*
+    
+  labels:
+    app.kubernetes.io/name: sample-api
+    app.kubernetes.io/instance: sample-api-dev
+    helm.sh/chart: "webapp-v0.1.0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: sample-api-dev
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sample-api
+        app.kubernetes.io/instance: sample-api-dev
+        helm.sh/chart: "webapp-v0.1.0"
+    spec:
+      imagePullSecrets:
+      - name: example-registrycredentials
+      containers:
+      - name: sample-api
+        image: "examplecr-on.azurecr.io/sample-api-dev:latest"
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /api/system/status
+            port: 80
+          initialDelaySeconds: 60
+          timeoutSeconds: 10
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /api/system/status
+            port: 80
+          initialDelaySeconds: 60
+          timeoutSeconds: 10
+        env:
+          - name: API_Authentication__ClientId
+            valueFrom:
+              secretKeyRef:
+                name: sample-api-dev
+                key: "API_Authentication__ClientId"
+        resources:
+            {}
+            
+---
+# Source: webapp/templates/ingress.yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: sample-api-dev
+  namespace: sample-ns
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    
+  labels:
+    app.kubernetes.io/name: sample-api
+    app.kubernetes.io/instance: sample-api-dev
+    helm.sh/chart: "webapp-v0.1.0"
+spec:
+  tls:
+    - hosts:
+      - sample-api-dev.example.com
+      secretName: star-example-com-tls
+  rules:
+  - host: sample-api-dev.example.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: sample-api-dev
+          servicePort: 80
+---
+# Source: webapp/templates/configmap.yaml
